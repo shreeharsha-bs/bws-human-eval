@@ -412,14 +412,14 @@ function showTrial(idx) {
       <span class="scenario-badge">${scenarioLabel}</span>
       <div class="question-text">${escapeHtml(trial.question)}</div>
 
-      <button class="expand-all-btn" onclick="toggleExpandAll(this)">▼ Expand all responses</button>
+      <button class="expand-all-btn" onclick="toggleExpandAll(this)">▲ Collapse all responses</button>
 
       <div class="response-grid">
         ${['A','B','C','D'].map(label => `
-          <div class="response-card" id="card_${label}" onclick="toggleExpand('${label}')">
+          <div class="response-card expanded" id="card_${label}" onclick="toggleExpand('${label}')">
             <div class="response-header">
               <span class="response-label">Response ${label}</span>
-              <span class="expand-icon" id="icon_${label}">▼</span>
+              <span class="expand-icon open" id="icon_${label}">▼</span>
             </div>
             <div class="response-preview">${escapeHtml(trial.responses[label]).slice(0, 150)}...</div>
             <div class="response-full">${escapeHtml(trial.responses[label])}</div>
