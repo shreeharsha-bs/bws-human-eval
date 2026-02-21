@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Response Quality Evaluation</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── Top bar ── */
+  .top-bar {
+    position: sticky; top: 0; z-index: 100;
+    background: #fff; border-bottom: 1px solid #d0d0d0;
+    padding: 10px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .progress-text { font-size: 14px; color: #555; }
+  .progress-bar-bg {
+    flex: 1; max-width: 400px; height: 8px; background: #e0e0e0;
+    border-radius: 4px; margin: 0 16px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, #4361ee, #7209b7);
+    border-radius: 4px; transition: width 0.4s ease;
+  }
+  .timer { font-size: 13px; color: #888; }
+
+  /* ── Container ── */
+  .container {
+    max-width: 1200px; margin: 0 auto;
+    padding: 24px 20px 80px;
+  }
+
+  /* ── Instructions panel ── */
+  .instructions {
+    background: #fff; border-radius: 12px;
+    padding: 32px; margin-bottom: 24px;
+    border-left: 4px solid #4361ee;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  }
+  .instructions h1 { font-size: 22px; margin-bottom: 12px; }
+  .instructions h2 { font-size: 17px; margin: 16px 0 8px; color: #4361ee; }
+  .instructions p, .instructions li { font-size: 14px; color: #444; margin-bottom: 6px; }
+  .instructions ul { padding-left: 20px; }
+  .instructions .highlight {
+    background: #fff3cd; padding: 8px 12px; border-radius: 6px;
+    font-size: 13px; margin-top: 12px;
+  }
+  .btn-start {
+    display: inline-block; margin-top: 16px; padding: 12px 32px;
+    background: #4361ee; color: #fff; border: none; border-radius: 8px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-start:hover { background: #3a56d4; }
+
+  /* ── Trial card ── */
+  .trial-card {
+    background: #fff; border-radius: 12px;
+    padding: 28px 32px; margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
+  }
+  .trial-card.hidden { display: none; }
+  .scenario-badge {
+    display: inline-block; padding: 3px 10px;
+    background: #e8eaf6; color: #4361ee; border-radius: 12px;
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 12px;
+  }
+  .question-text {
+    font-size: 15px; color: #333; font-style: italic;
+    background: #f8f9fa; padding: 12px 16px; border-radius: 8px;
+    margin-bottom: 20px; border-left: 3px solid #adb5bd;
+  }
+
+  /* ── Response grid ── */
+  .response-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px; margin-bottom: 24px;
+  }
+  .response-card {
+    border: 2px solid #e0e0e0; border-radius: 10px;
+    overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s;
+    position: relative;
+  }
+  .response-card:hover { border-color: #b0b0b0; }
+  .response-card.selected-best { border-color: #2ecc71; box-shadow: 0 0 0 2px rgba(46,204,113,.25); }
+  .response-card.selected-worst { border-color: #e74c3c; box-shadow: 0 0 0 2px rgba(231,76,60,.25); }
+
+  .response-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: #f8f9fa; border-bottom: 1px solid #eee;
+    cursor: pointer; user-select: none;
+  }
+  .response-label {
+    font-weight: 700; font-size: 15px; color: #4361ee;
+  }
+  .expand-icon {
+    font-size: 12px; color: #888; transition: transform 0.2s;
+  }
+  .expand-icon.open { transform: rotate(180deg); }
+
+  .response-preview {
+    padding: 12px 14px; font-size: 13px; color: #555;
+    max-height: 60px; overflow: hidden;
+    position: relative;
+  }
+  .response-preview::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+    height: 30px; background: linear-gradient(transparent, #fff);
+  }
+  .response-full {
+    padding: 12px 14px; font-size: 13px; color: #333;
+    line-height: 1.6; display: none; white-space: pre-wrap;
+  }
+  .response-card.expanded .response-preview { display: none; }
+  .response-card.expanded .response-full { display: block; }
+  .response-card.expanded .response-preview::after { display: none; }
+
+  .expand-all-btn {
+    display: inline-block; margin-bottom: 12px; padding: 6px 14px;
+    background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 12px; color: #555; cursor: pointer;
+  }
+  .expand-all-btn:hover { background: #e4e4e4; }
+
+  /* ── Selection area ── */
+  .selection-area {
+    background: #f8f9fa; border-radius: 10px; padding: 20px;
+    margin-top: 8px;
+  }
+  .selection-area h3 { font-size: 15px; margin-bottom: 16px; color: #333; }
+  .selection-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .selection-row label {
+    font-size: 14px; font-weight: 600; min-width: 120px;
+  }
+  .selection-row .best-label { color: #2ecc71; }
+  .selection-row .worst-label { color: #e74c3c; }
+  .sel-btn {
+    padding: 6px 18px; border: 2px solid #ddd; border-radius: 6px;
+    background: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all 0.15s; color: #555;
+  }
+  .sel-btn:hover { border-color: #999; }
+  .sel-btn.best-selected { background: #2ecc71; color: #fff; border-color: #2ecc71; }
+  .sel-btn.worst-selected { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+  .sel-btn.disabled { opacity: 0.35; pointer-events: none; }
+
+  .selection-warning {
+    color: #e74c3c; font-size: 13px; margin-top: 8px; display: none;
+  }
+
+  /* ── Navigation ── */
+  .nav-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee;
+  }
+  .btn-nav {
+    padding: 10px 28px; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-prev { background: #e0e0e0; color: #555; }
+  .btn-prev:hover { background: #ccc; }
+  .btn-next { background: #4361ee; color: #fff; }
+  .btn-next:hover { background: #3a56d4; }
+  .btn-next:disabled { background: #bbb; cursor: not-allowed; }
+  .btn-submit { background: #2ecc71; color: #fff; }
+  .btn-submit:hover { background: #27ae60; }
+
+  /* ── Break screen ── */
+  .break-screen {
+    text-align: center; padding: 60px 20px;
+  }
+  .break-screen h2 { font-size: 20px; margin-bottom: 12px; color: #4361ee; }
+  .break-screen p { font-size: 15px; color: #666; margin-bottom: 20px; }
+
+  /* ── Completion ── */
+  .completion {
+    text-align: center; padding: 60px 20px;
+  }
+  .completion h1 { font-size: 24px; color: #2ecc71; margin-bottom: 12px; }
+  .completion p { font-size: 15px; color: #555; }
+  .completion .code { 
+    font-size: 20px; font-weight: bold; color: #4361ee;
+    background: #e8eaf6; padding: 8px 20px; border-radius: 8px;
+    display: inline-block; margin: 16px 0;
+    letter-spacing: 2px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .response-grid { grid-template-columns: 1fr; }
+    .container { padding: 12px; }
+    .trial-card { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Top progress bar -->
+<div class="top-bar">
+  <span class="progress-text" id="progressText">0 / 0</span>
+  <div class="progress-bar-bg">
+    <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+  </div>
+  <span class="timer" id="timer">00:00</span>
+</div>
+
+<div class="container">
+  <!-- Instructions (shown first) -->
+  <div class="instructions" id="instructionsPanel">
+    <h1>Response Quality Evaluation</h1>
+    <p>Thank you for participating in this study. You will be evaluating AI-generated responses to various everyday scenarios.</p>
+
+    <h2>Your Task</h2>
+    <p>On each screen, you will see a <strong>question/scenario</strong> and <strong>4 different AI-generated responses</strong> (labeled A, B, C, D).</p>
+    <p>For each set, you need to:</p>
+    <ul>
+      <li>Read all 4 responses (click to expand each one)</li>
+      <li>Select the <strong style="color:#2ecc71">MOST helpful</strong> response</li>
+      <li>Select the <strong style="color:#e74c3c">LEAST helpful</strong> response</li>
+    </ul>
+
+    <h2>What Makes a Response "Helpful"?</h2>
+    <ul>
+      <li><strong>Relevance</strong> — Does it actually address the question?</li>
+      <li><strong>Specificity</strong> — Does it give concrete, actionable advice (not vague platitudes)?</li>
+      <li><strong>Quality</strong> — Is it well-organized and easy to follow?</li>
+      <li><strong>Respect</strong> — Does it treat the person asking as competent?</li>
+    </ul>
+
+    <h2>Important Notes</h2>
+    <ul>
+      <li>There are no right or wrong answers — we want your honest judgment</li>
+      <li>Please read all 4 responses before making your selection</li>
+      <li>You <strong>cannot</strong> select the same response as both best and worst</li>
+      <li>Some items are quality checks — please pay attention throughout</li>
+      <li>The study takes approximately <strong>15–18 minutes</strong></li>
+    </ul>
+
+    <div class="highlight">
+      ⏱ You can take short breaks between items. A break prompt will appear periodically.
+    </div>
+
+    <button class="btn-start" onclick="startStudy()">I understand — Start the study</button>
+  </div>
+
+  <!-- Trial container (initially hidden) -->
+  <div id="trialContainer" class="hidden"></div>
+
+  <!-- Completion screen -->
+  <div id="completionScreen" class="trial-card hidden">
+    <div class="completion">
+      <h1>✓ Study Complete!</h1>
+      <p>Thank you for your careful evaluation!</p>
+
+      <div style="background:#e8f5e9; border-radius:10px; padding:24px; margin:20px 0; text-align:left;">
+        <h3 style="margin-bottom:12px; color:#2e7d32;">📥 Step 1: Download your results</h3>
+        <p style="font-size:14px; color:#555; margin-bottom:12px;">Your results file should download automatically. If it doesn't, click the button below:</p>
+        <button class="btn-start" id="downloadBtn" onclick="downloadResults()" style="background:#2e7d32;">⬇ Download Results File</button>
+        <p style="font-size:12px; color:#888; margin-top:8px;" id="downloadStatus"></p>
+      </div>
+
+      <div style="background:#e3f2fd; border-radius:10px; padding:24px; margin:20px 0; text-align:left;">
+        <h3 style="margin-bottom:12px; color:#1565c0;">📧 Step 2: Email the file</h3>
+        <p style="font-size:14px; color:#555;">Please send the downloaded <code>.json</code> file to:</p>
+        <div style="font-size:18px; font-weight:bold; color:#1565c0; margin:12px 0; font-family:monospace;" id="emailAddress"><!-- set in config --></div>
+        <p style="font-size:13px; color:#888;">Subject line: <strong>BWS Evaluation — <span id="pidDisplay"></span></strong></p>
+      </div>
+
+      <div style="background:#fff3e0; border-radius:10px; padding:24px; margin:20px 0; text-align:left;">
+        <h3 style="margin-bottom:12px; color:#e65100;">🎫 Step 3: Enter completion code on Prolific</h3>
+        <p style="font-size:14px; color:#555; margin-bottom:8px;">Copy this code and paste it into Prolific:</p>
+        <div class="code" id="completionCode">LOADING...</div>
+        <p style="margin-top:12px;"><button class="btn-start" onclick="redirectToProlific()" style="background:#e65100;">Return to Prolific</button></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Configuration ──────────────────────────────────────────────────────────
+const PROLIFIC_COMPLETION_URL = "https://app.prolific.com/submissions/complete?cc=XXXXXXXX"; // Replace with actual Prolific completion code
+const RESEARCHER_EMAIL = "your.email@university.edu"; // Replace with your email
+const BREAK_INTERVAL = 7; // Show break every N trials
+
+// ── State ──────────────────────────────────────────────────────────────────
+let trials = [];
+let currentTrialIdx = -1;
+let responses = {}; // trial_id -> {best, worst, time_ms}
+let startTime = null;
+let trialStartTime = null;
+let participantId = null;
+let assignedSlot = null;
+
+// ── Parse URL params ───────────────────────────────────────────────────────
+function getUrlParam(name) {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
+// ── Load trial data ────────────────────────────────────────────────────────
+// Trial data is embedded in the page or loaded from JSON
+let ALL_TRIAL_DATA = null;
+
+async function loadTrialData() {
+  // Try loading from embedded data first, then from file
+  if (ALL_TRIAL_DATA) return ALL_TRIAL_DATA;
+  
+  try {
+    const resp = await fetch("trials_by_participant.json");
+    ALL_TRIAL_DATA = await resp.json();
+    return ALL_TRIAL_DATA;
+  } catch (e) {
+    console.error("Failed to load trial data:", e);
+    alert("Error loading trial data. Please refresh the page.");
+    return null;
+  }
+}
+
+// ── Initialize ─────────────────────────────────────────────────────────────
+async function init() {
+  participantId = getUrlParam("PROLIFIC_PID") || getUrlParam("participant") || "test_" + Math.random().toString(36).slice(2, 8);
+  document.getElementById("progressText").textContent = `Participant: ${participantId.slice(0, 8)}...`;
+
+  const data = await loadTrialData();
+  if (!data) return;
+
+  // Find participant's trials by matching participant_id to key
+  // For Prolific: we assign based on URL param, cycling through available slots
+  const pKeys = Object.keys(data);
+  
+  // Map Prolific PID to a participant slot
+  assignedSlot = getUrlParam("participant");
+  if (!assignedSlot) {
+    // Hash the PID to get a consistent slot
+    let hash = 0;
+    for (let i = 0; i < participantId.length; i++) {
+      hash = ((hash << 5) - hash) + participantId.charCodeAt(i);
+      hash |= 0;
+    }
+    const idx = Math.abs(hash) % pKeys.length;
+    assignedSlot = pKeys[idx];
+  }
+
+  trials = data[assignedSlot] || data[pKeys[0]];
+  console.log(`Loaded ${trials.length} trials for slot ${assignedSlot}`);
+}
+
+// ── Timer ──────────────────────────────────────────────────────────────────
+function updateTimer() {
+  if (!startTime) return;
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const min = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const sec = String(elapsed % 60).padStart(2, '0');
+  document.getElementById("timer").textContent = `${min}:${sec}`;
+}
+
+// ── Start study ────────────────────────────────────────────────────────────
+function startStudy() {
+  document.getElementById("instructionsPanel").classList.add("hidden");
+  document.getElementById("trialContainer").classList.remove("hidden");
+  startTime = Date.now();
+  setInterval(updateTimer, 1000);
+  showTrial(0);
+}
+
+// ── Render trial ───────────────────────────────────────────────────────────
+function showTrial(idx) {
+  if (idx >= trials.length) {
+    showCompletion();
+    return;
+  }
+
+  // Check if we should show a break
+  if (idx > 0 && idx % BREAK_INTERVAL === 0 && !responses[`break_${idx}`]) {
+    showBreak(idx);
+    return;
+  }
+
+  currentTrialIdx = idx;
+  trialStartTime = Date.now();
+  const trial = trials[idx];
+
+  // Update progress
+  const pct = Math.round((idx / trials.length) * 100);
+  document.getElementById("progressText").textContent = `${idx + 1} / ${trials.length}`;
+  document.getElementById("progressFill").style.width = `${pct}%`;
+
+  // Previous response (if navigating back)
+  const prev = responses[trial.trial_id];
+
+  const container = document.getElementById("trialContainer");
+  const scenarioLabel = trial.scenario.replace(/_/g, ' ');
+
+  container.innerHTML = `
+    <div class="trial-card">
+      <span class="scenario-badge">${scenarioLabel}</span>
+      <div class="question-text">${escapeHtml(trial.question)}</div>
+
+      <button class="expand-all-btn" onclick="toggleExpandAll(this)">▼ Expand all responses</button>
+
+      <div class="response-grid">
+        ${['A','B','C','D'].map(label => `
+          <div class="response-card" id="card_${label}" onclick="toggleExpand('${label}')">
+            <div class="response-header">
+              <span class="response-label">Response ${label}</span>
+              <span class="expand-icon" id="icon_${label}">▼</span>
+            </div>
+            <div class="response-preview">${escapeHtml(trial.responses[label]).slice(0, 150)}...</div>
+            <div class="response-full">${escapeHtml(trial.responses[label])}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="selection-area">
+        <h3>Your judgment:</h3>
+        <div class="selection-row">
+          <label class="best-label">✓ MOST helpful:</label>
+          ${['A','B','C','D'].map(l => `
+            <button class="sel-btn" id="best_${l}" onclick="selectBest('${l}')">${l}</button>
+          `).join('')}
+        </div>
+        <div class="selection-row">
+          <label class="worst-label">✗ LEAST helpful:</label>
+          ${['A','B','C','D'].map(l => `
+            <button class="sel-btn" id="worst_${l}" onclick="selectWorst('${l}')">${l}</button>
+          `).join('')}
+        </div>
+        <div class="selection-warning" id="selWarning">
+          You cannot select the same response as both best and worst.
+        </div>
+      </div>
+
+      <div class="nav-bar">
+        <button class="btn-nav btn-prev" onclick="prevTrial()" ${idx === 0 ? 'style="visibility:hidden"' : ''}>← Previous</button>
+        <span style="font-size:13px;color:#888;">Trial ${idx + 1} of ${trials.length}</span>
+        ${idx === trials.length - 1 
+          ? '<button class="btn-nav btn-submit" id="btnNext" onclick="nextTrial()" disabled>Submit & Finish</button>'
+          : '<button class="btn-nav btn-next" id="btnNext" onclick="nextTrial()" disabled>Next →</button>'
+        }
+      </div>
+    </div>
+  `;
+
+  // Restore previous selection if navigating back
+  if (prev) {
+    if (prev.best) selectBest(prev.best, true);
+    if (prev.worst) selectWorst(prev.worst, true);
+  }
+
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Break screen ───────────────────────────────────────────────────────────
+function showBreak(nextIdx) {
+  const container = document.getElementById("trialContainer");
+  const pct = Math.round((nextIdx / trials.length) * 100);
+  container.innerHTML = `
+    <div class="trial-card">
+      <div class="break-screen">
+        <h2>☕ Quick break</h2>
+        <p>You've completed ${nextIdx} of ${trials.length} items (${pct}%).</p>
+        <p>Take a moment to rest your eyes if needed.</p>
+        <button class="btn-start" onclick="resumeFromBreak(${nextIdx})">Continue →</button>
+      </div>
+    </div>
+  `;
+  responses[`break_${nextIdx}`] = true;
+}
+
+function resumeFromBreak(idx) {
+  showTrial(idx);
+}
+
+// ── Expand/collapse responses ──────────────────────────────────────────────
+function toggleExpand(label) {
+  const card = document.getElementById(`card_${label}`);
+  const icon = document.getElementById(`icon_${label}`);
+  card.classList.toggle('expanded');
+  icon.classList.toggle('open');
+}
+
+function toggleExpandAll(btn) {
+  const cards = document.querySelectorAll('.response-card');
+  const allExpanded = Array.from(cards).every(c => c.classList.contains('expanded'));
+  cards.forEach(c => {
+    if (allExpanded) {
+      c.classList.remove('expanded');
+    } else {
+      c.classList.add('expanded');
+    }
+  });
+  document.querySelectorAll('.expand-icon').forEach(i => {
+    if (allExpanded) i.classList.remove('open');
+    else i.classList.add('open');
+  });
+  btn.textContent = allExpanded ? '▼ Expand all responses' : '▲ Collapse all responses';
+}
+
+// ── Selection logic ────────────────────────────────────────────────────────
+let currentBest = null;
+let currentWorst = null;
+
+function selectBest(label, isRestore) {
+  // Can't select same as worst
+  if (label === currentWorst) {
+    document.getElementById("selWarning").style.display = "block";
+    setTimeout(() => document.getElementById("selWarning").style.display = "none", 2000);
+    return;
+  }
+
+  // Clear previous best
+  ['A','B','C','D'].forEach(l => {
+    document.getElementById(`best_${l}`).classList.remove('best-selected');
+    document.getElementById(`card_${l}`).classList.remove('selected-best');
+  });
+  // Also re-enable previously disabled worst buttons
+  ['A','B','C','D'].forEach(l => {
+    document.getElementById(`worst_${l}`).classList.remove('disabled');
+  });
+
+  document.getElementById(`best_${label}`).classList.add('best-selected');
+  document.getElementById(`card_${label}`).classList.add('selected-best');
+  // Disable this label in worst row
+  document.getElementById(`worst_${label}`).classList.add('disabled');
+
+  currentBest = label;
+  checkComplete();
+}
+
+function selectWorst(label, isRestore) {
+  if (label === currentBest) {
+    document.getElementById("selWarning").style.display = "block";
+    setTimeout(() => document.getElementById("selWarning").style.display = "none", 2000);
+    return;
+  }
+
+  ['A','B','C','D'].forEach(l => {
+    document.getElementById(`worst_${l}`).classList.remove('worst-selected');
+    document.getElementById(`card_${l}`).classList.remove('selected-worst');
+  });
+  ['A','B','C','D'].forEach(l => {
+    document.getElementById(`best_${l}`).classList.remove('disabled');
+  });
+
+  document.getElementById(`worst_${label}`).classList.add('worst-selected');
+  document.getElementById(`card_${label}`).classList.add('selected-worst');
+  document.getElementById(`best_${label}`).classList.add('disabled');
+
+  currentWorst = label;
+  checkComplete();
+}
+
+function checkComplete() {
+  const btn = document.getElementById("btnNext");
+  if (currentBest && currentWorst && currentBest !== currentWorst) {
+    btn.disabled = false;
+  }
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function saveCurrentResponse() {
+  if (currentTrialIdx < 0 || currentTrialIdx >= trials.length) return;
+  const trial = trials[currentTrialIdx];
+  responses[trial.trial_id] = {
+    trial_id: trial.trial_id,
+    trial_type: trial.trial_type,
+    best: currentBest,
+    worst: currentWorst,
+    time_ms: Date.now() - trialStartTime,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function nextTrial() {
+  saveCurrentResponse();
+  currentBest = null;
+  currentWorst = null;
+
+  if (currentTrialIdx >= trials.length - 1) {
+    showCompletion();
+  } else {
+    showTrial(currentTrialIdx + 1);
+  }
+}
+
+function prevTrial() {
+  saveCurrentResponse();
+  currentBest = null;
+  currentWorst = null;
+  if (currentTrialIdx > 0) {
+    showTrial(currentTrialIdx - 1);
+  }
+}
+
+// ── Completion ─────────────────────────────────────────────────────────────
+let completionPayload = null;
+
+async function showCompletion() {
+  document.getElementById("trialContainer").classList.add("hidden");
+  document.getElementById("completionScreen").classList.remove("hidden");
+  document.getElementById("progressFill").style.width = "100%";
+  document.getElementById("progressText").textContent = `${trials.length} / ${trials.length} ✓`;
+
+  // Generate completion code
+  const code = "BWS" + Math.random().toString(36).slice(2, 8).toUpperCase();
+  document.getElementById("completionCode").textContent = code;
+  document.getElementById("emailAddress").textContent = RESEARCHER_EMAIL;
+  document.getElementById("pidDisplay").textContent = participantId;
+
+  // Package data
+  completionPayload = {
+    participant_id: participantId,
+    assigned_slot: assignedSlot,
+    completion_code: code,
+    total_time_ms: Date.now() - startTime,
+    trials_completed: Object.keys(responses).filter(k => !k.startsWith('break_')).length,
+    responses: responses,
+    user_agent: navigator.userAgent,
+    timestamp: new Date().toISOString(),
+  };
+
+  // Save to localStorage as backup
+  localStorage.setItem(`bws_eval_${participantId}`, JSON.stringify(completionPayload));
+
+  // Auto-download the results file
+  downloadResults();
+}
+
+function downloadResults() {
+  if (!completionPayload) return;
+  const blob = new Blob([JSON.stringify(completionPayload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `bws_response_${participantId}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  document.getElementById("downloadStatus").textContent = `✓ File downloaded: bws_response_${participantId}.json`;
+  document.getElementById("downloadBtn").textContent = "⬇ Download Again";
+}
+
+function redirectToProlific() {
+  window.location.href = PROLIFIC_COMPLETION_URL;
+}
+
+// ── Utility ────────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+init();
+</script>
+
+</body>
+</html>
