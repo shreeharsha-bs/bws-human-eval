@@ -4,9 +4,35 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Response Quality Evaluation</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
 
+<!-- jsPsych 7 (served by cognition.run when you select a version) -->
+<script src="jspsych/jspsych.js"></script>
+<link rel="stylesheet" href="jspsych/jspsych.css">
+<!-- JATOS (served by cognition.run) -->
+<script src="jatos.js"></script>
+
+<style>
+  /* ── Override jsPsych defaults ── */
+  html, body { margin: 0 !important; padding: 0 !important; min-height: 100vh; }
+  .jspsych-display-element {
+    display: block !important;
+    overflow: visible !important;
+    max-width: none !important;
+  }
+  #jspsych-content, .jspsych-content {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .jspsych-content-wrapper {
+    display: block !important;
+    overflow: visible !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* ── Base ── */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #f0f2f5;
@@ -17,7 +43,7 @@
 
   /* ── Top bar ── */
   .top-bar {
-    position: sticky; top: 0; z-index: 100;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
     background: #fff; border-bottom: 1px solid #d0d0d0;
     padding: 10px 24px;
     display: flex; align-items: center; justify-content: space-between;
@@ -35,9 +61,9 @@
   .timer { font-size: 13px; color: #888; }
 
   /* ── Container ── */
-  .container {
+  .bws-container {
     max-width: 1200px; margin: 0 auto;
-    padding: 24px 20px 80px;
+    padding: 56px 20px 80px;
   }
 
   /* ── Instructions panel ── */
@@ -102,18 +128,13 @@
     padding: 10px 14px; background: #f8f9fa; border-bottom: 1px solid #eee;
     cursor: pointer; user-select: none;
   }
-  .response-label {
-    font-weight: 700; font-size: 15px; color: #4361ee;
-  }
-  .expand-icon {
-    font-size: 12px; color: #888; transition: transform 0.2s;
-  }
+  .response-label { font-weight: 700; font-size: 15px; color: #4361ee; }
+  .expand-icon { font-size: 12px; color: #888; transition: transform 0.2s; }
   .expand-icon.open { transform: rotate(180deg); }
 
   .response-preview {
     padding: 12px 14px; font-size: 13px; color: #555;
-    max-height: 60px; overflow: hidden;
-    position: relative;
+    max-height: 60px; overflow: hidden; position: relative;
   }
   .response-preview::after {
     content: ''; position: absolute; bottom: 0; left: 0; right: 0;
@@ -136,17 +157,14 @@
 
   /* ── Selection area ── */
   .selection-area {
-    background: #f8f9fa; border-radius: 10px; padding: 20px;
-    margin-top: 8px;
+    background: #f8f9fa; border-radius: 10px; padding: 20px; margin-top: 8px;
   }
   .selection-area h3 { font-size: 15px; margin-bottom: 16px; color: #333; }
   .selection-row {
     display: flex; align-items: center; gap: 12px;
     margin-bottom: 14px; flex-wrap: wrap;
   }
-  .selection-row label {
-    font-size: 14px; font-weight: 600; min-width: 120px;
-  }
+  .selection-row label { font-size: 14px; font-weight: 600; min-width: 120px; }
   .selection-row .best-label { color: #2ecc71; }
   .selection-row .worst-label { color: #e74c3c; }
   .sel-btn {
@@ -159,9 +177,7 @@
   .sel-btn.worst-selected { background: #e74c3c; color: #fff; border-color: #e74c3c; }
   .sel-btn.disabled { opacity: 0.35; pointer-events: none; }
 
-  .selection-warning {
-    color: #e74c3c; font-size: 13px; margin-top: 8px; display: none;
-  }
+  .selection-warning { color: #e74c3c; font-size: 13px; margin-top: 8px; display: none; }
 
   /* ── Navigation ── */
   .nav-bar {
@@ -170,8 +186,7 @@
   }
   .btn-nav {
     padding: 10px 28px; border: none; border-radius: 8px;
-    font-size: 14px; font-weight: 600; cursor: pointer;
-    transition: all 0.2s;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
   }
   .btn-prev { background: #e0e0e0; color: #555; }
   .btn-prev:hover { background: #ccc; }
@@ -182,37 +197,25 @@
   .btn-submit:hover { background: #27ae60; }
 
   /* ── Break screen ── */
-  .break-screen {
-    text-align: center; padding: 60px 20px;
-  }
+  .break-screen { text-align: center; padding: 60px 20px; }
   .break-screen h2 { font-size: 20px; margin-bottom: 12px; color: #4361ee; }
   .break-screen p { font-size: 15px; color: #666; margin-bottom: 20px; }
 
   /* ── Completion ── */
-  .completion {
-    text-align: center; padding: 60px 20px;
-  }
+  .completion { text-align: center; padding: 60px 20px; }
   .completion h1 { font-size: 24px; color: #2ecc71; margin-bottom: 12px; }
   .completion p { font-size: 15px; color: #555; }
-  .completion .code { 
+  .completion .code {
     font-size: 20px; font-weight: bold; color: #4361ee;
     background: #e8eaf6; padding: 8px 20px; border-radius: 8px;
-    display: inline-block; margin: 16px 0;
-    letter-spacing: 2px;
+    display: inline-block; margin: 16px 0; letter-spacing: 2px;
   }
-
-  /* ── Responsive ── */
-  @media (max-width: 768px) {
-    .response-grid { grid-template-columns: 1fr; }
-    .container { padding: 12px; }
-    .trial-card { padding: 16px; }
-  }
+  .hidden { display: none !important; }
 
   /* ── Save status ── */
   .save-status {
     display: flex; align-items: center; gap: 8px;
-    padding: 12px 16px; border-radius: 8px;
-    font-size: 14px; margin-top: 12px;
+    padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-top: 12px;
   }
   .save-status.saving { background: #fff3e0; color: #e65100; }
   .save-status.saved  { background: #e8f5e9; color: #2e7d32; }
@@ -223,525 +226,536 @@
     border-radius: 50%; animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .response-grid { grid-template-columns: 1fr; }
+    .bws-container { padding: 56px 12px 80px; }
+    .trial-card { padding: 16px; }
+  }
 </style>
-<script src="jatos.js"></script>
 </head>
-<body>
 
-<!-- Top progress bar -->
-<div class="top-bar">
-  <span class="progress-text" id="progressText">0 / 0</span>
-  <div class="progress-bar-bg">
-    <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
-  </div>
-  <span class="timer" id="timer">00:00</span>
-</div>
-
-<div class="container">
-  <!-- Instructions (shown first) -->
-  <div class="instructions" id="instructionsPanel">
-    <h1>Response Quality Evaluation</h1>
-    <p>Thank you for participating in this study. You will be evaluating AI-generated responses to various everyday scenarios.</p>
-
-    <h2>Your Task</h2>
-    <p>On each screen, you will see a <strong>question/scenario</strong> and <strong>4 different AI-generated responses</strong> (labeled A, B, C, D).</p>
-    <p>For each set, you need to:</p>
-    <ul>
-      <li>Read all 4 responses (click to expand each one)</li>
-      <li>Select the <strong style="color:#2ecc71">MOST helpful</strong> response</li>
-      <li>Select the <strong style="color:#e74c3c">LEAST helpful</strong> response</li>
-    </ul>
-
-    <h2>What Makes a Response "Helpful"?</h2>
-    <ul>
-      <li><strong>Relevance</strong> — Does it actually address the question?</li>
-      <li><strong>Specificity</strong> — Does it give concrete, actionable advice (not vague platitudes)?</li>
-      <li><strong>Quality</strong> — Is it well-organized and easy to follow?</li>
-      <li><strong>Respect</strong> — Does it treat the person asking as competent?</li>
-    </ul>
-
-    <h2>Important Notes</h2>
-    <ul>
-      <li>There are no right or wrong answers — we want your honest judgment</li>
-      <li>Please read all 4 responses before making your selection</li>
-      <li>You <strong>cannot</strong> select the same response as both best and worst</li>
-      <li>Some items are quality checks — please pay attention throughout</li>
-      <li>The study takes approximately <strong>15–18 minutes</strong></li>
-    </ul>
-
-    <div class="highlight">
-      ⏱ You can take short breaks between items. A break prompt will appear periodically.
-    </div>
-
-    <button class="btn-start" onclick="startStudy()">I understand — Start the study</button>
-  </div>
-
-  <!-- Trial container (initially hidden) -->
-  <div id="trialContainer" class="hidden"></div>
-
-  <!-- Completion screen -->
-  <div id="completionScreen" class="trial-card hidden">
-    <div class="completion">
-      <h1>✓ Study Complete!</h1>
-      <p>Thank you for your careful evaluation!</p>
-
-      <!-- Status box (cognition.run / JATOS mode) -->
-      <div id="saveStatusBox" style="background:#e8f5e9; border-radius:10px; padding:24px; margin:20px 0; text-align:left;">
-        <h3 style="margin-bottom:12px; color:#2e7d32;">💾 Saving your results...</h3>
-        <div class="save-status saving" id="saveStatusMsg">
-          <div class="spinner"></div>
-          <span>Uploading responses to server...</span>
-        </div>
-      </div>
-
-      <!-- Fallback: download + email (shown only if not on cognition.run) -->
-      <div id="fallbackDownload" class="hidden" style="text-align:left;">
-        <div style="background:#e8f5e9; border-radius:10px; padding:24px; margin:20px 0;">
-          <h3 style="margin-bottom:12px; color:#2e7d32;">📥 Step 1: Download your results</h3>
-          <p style="font-size:14px; color:#555; margin-bottom:12px;">Your results file should download automatically. If it doesn't, click below:</p>
-          <button class="btn-start" id="downloadBtn" onclick="downloadResults()" style="background:#2e7d32;">⬇ Download Results File</button>
-          <p style="font-size:12px; color:#888; margin-top:8px;" id="downloadStatus"></p>
-        </div>
-        <div style="background:#e3f2fd; border-radius:10px; padding:24px; margin:20px 0;">
-          <h3 style="margin-bottom:12px; color:#1565c0;">📧 Step 2: Email the file</h3>
-          <p style="font-size:14px; color:#555;">Send the downloaded <code>.json</code> file to:</p>
-          <div style="font-size:18px; font-weight:bold; color:#1565c0; margin:12px 0; font-family:monospace;" id="emailAddress"></div>
-          <p style="font-size:13px; color:#888;">Subject: <strong>BWS Evaluation — <span id="pidDisplay"></span></strong></p>
-        </div>
-      </div>
-
-      <!-- Prolific redirect (always shown) -->
-      <div style="background:#fff3e0; border-radius:10px; padding:24px; margin:20px 0; text-align:left;">
-        <h3 style="margin-bottom:12px; color:#e65100;">🎫 Return to Prolific</h3>
-        <p style="font-size:14px; color:#555; margin-bottom:8px;">Copy this completion code and paste it into Prolific:</p>
-        <div class="code" id="completionCode">LOADING...</div>
-        <p style="margin-top:12px;"><button class="btn-start" id="btnProlific" onclick="redirectToProlific()" style="background:#e65100;" disabled>Saving… please wait</button></p>
-      </div>
-    </div>
-  </div>
-</div>
+<body></body>
 
 <script>
-// ── Configuration ──────────────────────────────────────────────────────────
-const PROLIFIC_COMPLETION_URL = "https://app.prolific.com/submissions/complete?cc=CV4XUPGK"; // Replace with actual Prolific completion code
-const RESEARCHER_EMAIL = "shbs@kth.se";
-const BREAK_INTERVAL = 7; // Show break every N trials
-const ON_JATOS = (typeof jatos !== 'undefined'); // true when running on cognition.run
+// ═══════════════════════════════════════════════════════════════════════════
+// Configuration
+// ═══════════════════════════════════════════════════════════════════════════
+var PROLIFIC_COMPLETION_URL = "https://app.prolific.com/submissions/complete?cc=CV4XUPGK";
+var RESEARCHER_EMAIL = "shbs@kth.se";
+var BREAK_INTERVAL = 7;
 
-// ── State ──────────────────────────────────────────────────────────────────
-let trials = [];
-let currentTrialIdx = -1;
-let responses = {}; // trial_id -> {best, worst, time_ms}
-let startTime = null;
-let trialStartTime = null;
-let participantId = null;
-let assignedSlot = null;
+// ═══════════════════════════════════════════════════════════════════════════
+// Main experiment — renders into any target element
+// ═══════════════════════════════════════════════════════════════════════════
+function runBwsExperiment(targetElement) {
 
-// ── Parse URL params ───────────────────────────────────────────────────────
-function getUrlParam(name) {
-  const params = new URLSearchParams(window.location.search);
-  return params.get(name);
-}
+  // ── State ──
+  var trials = [];
+  var currentTrialIdx = -1;
+  var responses = {};
+  var startTime = null;
+  var trialStartTime = null;
+  var participantId = null;
+  var assignedSlot = null;
+  var currentBest = null;
+  var currentWorst = null;
+  var completionPayload = null;
+  var timerInterval = null;
 
-// ── Load trial data ────────────────────────────────────────────────────────
-// Trial data is embedded in the page or loaded from JSON
-let ALL_TRIAL_DATA = null;
+  // ── Render shell HTML ──
+  targetElement.innerHTML =
+    '<div class="top-bar" id="topBar">' +
+      '<span class="progress-text" id="progressText">0 / 0</span>' +
+      '<div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>' +
+      '<span class="timer" id="timer">00:00</span>' +
+    '</div>' +
 
-async function loadTrialData() {
-  // Try loading from embedded data first, then from file
-  if (ALL_TRIAL_DATA) return ALL_TRIAL_DATA;
-  
-  try {
-    const resp = await fetch("trials_by_participant.json");
-    ALL_TRIAL_DATA = await resp.json();
-    return ALL_TRIAL_DATA;
-  } catch (e) {
-    console.error("Failed to load trial data:", e);
-    alert("Error loading trial data. Please refresh the page.");
-    return null;
+    '<div class="bws-container">' +
+
+      // Instructions
+      '<div class="instructions" id="instructionsPanel">' +
+        '<h1>Response Quality Evaluation</h1>' +
+        '<p>Thank you for participating in this study. You will be evaluating AI-generated responses to various everyday scenarios.</p>' +
+        '<h2>Your Task</h2>' +
+        '<p>On each screen, you will see a <strong>question/scenario</strong> and <strong>4 different AI-generated responses</strong> (labeled A, B, C, D).</p>' +
+        '<p>For each set, you need to:</p>' +
+        '<ul>' +
+          '<li>Read all 4 responses</li>' +
+          '<li>Select the <strong style="color:#2ecc71">MOST helpful</strong> response</li>' +
+          '<li>Select the <strong style="color:#e74c3c">LEAST helpful</strong> response</li>' +
+        '</ul>' +
+        '<h2>What Makes a Response &ldquo;Helpful&rdquo;?</h2>' +
+        '<ul>' +
+          '<li><strong>Relevance</strong> &mdash; Does it actually address the question?</li>' +
+          '<li><strong>Specificity</strong> &mdash; Does it give concrete, actionable advice?</li>' +
+          '<li><strong>Quality</strong> &mdash; Is it well-organized and easy to follow?</li>' +
+          '<li><strong>Respect</strong> &mdash; Does it treat the person asking as competent?</li>' +
+        '</ul>' +
+        '<h2>Important Notes</h2>' +
+        '<ul>' +
+          '<li>There are no right or wrong answers &mdash; we want your honest judgment</li>' +
+          '<li>Please read all 4 responses before making your selection</li>' +
+          '<li>You <strong>cannot</strong> select the same response as both best and worst</li>' +
+          '<li>Some items are quality checks &mdash; please pay attention throughout</li>' +
+          '<li>The study takes approximately <strong>15&ndash;18 minutes</strong></li>' +
+        '</ul>' +
+        '<div class="highlight">&9201; You can take short breaks between items. A break prompt will appear periodically.</div>' +
+        '<button class="btn-start" id="btnStart">I understand &mdash; Start the study</button>' +
+      '</div>' +
+
+      // Trial container
+      '<div id="trialContainer" class="hidden"></div>' +
+
+      // Completion screen
+      '<div id="completionScreen" class="trial-card hidden">' +
+        '<div class="completion">' +
+          '<h1>&#10003; Study Complete!</h1>' +
+          '<p>Thank you for your careful evaluation!</p>' +
+
+          '<div id="saveStatusBox" style="background:#e8f5e9;border-radius:10px;padding:24px;margin:20px 0;text-align:left;">' +
+            '<h3 style="margin-bottom:12px;color:#2e7d32;">&#128190; Saving your results&hellip;</h3>' +
+            '<div class="save-status saving" id="saveStatusMsg"><div class="spinner"></div><span>Uploading responses to server&hellip;</span></div>' +
+          '</div>' +
+
+          '<div id="fallbackDownload" class="hidden" style="text-align:left;">' +
+            '<div style="background:#e8f5e9;border-radius:10px;padding:24px;margin:20px 0;">' +
+              '<h3 style="margin-bottom:12px;color:#2e7d32;">&#128229; Download your results</h3>' +
+              '<p style="font-size:14px;color:#555;margin-bottom:12px;">If the download did not start automatically, click below:</p>' +
+              '<button class="btn-start" id="downloadBtn" style="background:#2e7d32;">&#11015; Download Results File</button>' +
+              '<p style="font-size:12px;color:#888;margin-top:8px;" id="downloadStatus"></p>' +
+            '</div>' +
+            '<div style="background:#e3f2fd;border-radius:10px;padding:24px;margin:20px 0;">' +
+              '<h3 style="margin-bottom:12px;color:#1565c0;">&#128231; Email the file</h3>' +
+              '<p style="font-size:14px;color:#555;">Send the downloaded <code>.json</code> file to:</p>' +
+              '<div style="font-size:18px;font-weight:bold;color:#1565c0;margin:12px 0;font-family:monospace;" id="emailAddress"></div>' +
+              '<p style="font-size:13px;color:#888;">Subject: <strong>BWS Evaluation &mdash; <span id="pidDisplay"></span></strong></p>' +
+            '</div>' +
+          '</div>' +
+
+          '<div style="background:#fff3e0;border-radius:10px;padding:24px;margin:20px 0;text-align:left;">' +
+            '<h3 style="margin-bottom:12px;color:#e65100;">&#127915; Return to Prolific</h3>' +
+            '<p style="font-size:14px;color:#555;margin-bottom:8px;">Copy this completion code and paste it into Prolific:</p>' +
+            '<div class="code" id="completionCode">LOADING...</div>' +
+            '<p style="margin-top:12px;"><button class="btn-start" id="btnProlific" style="background:#e65100;" disabled>Saving&hellip; please wait</button></p>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
+    '</div>';
+
+  // ── Wire initial event listeners ──
+  document.getElementById('btnStart').addEventListener('click', startStudy);
+  document.getElementById('downloadBtn').addEventListener('click', downloadResults);
+  document.getElementById('btnProlific').addEventListener('click', redirectToProlific);
+
+  // ── Helpers ──
+  function getUrlParam(name) {
+    return new URLSearchParams(window.location.search).get(name);
   }
-}
 
-// ── Initialize ─────────────────────────────────────────────────────────────
-async function init() {
-  participantId = getUrlParam("PROLIFIC_PID") || getUrlParam("participant") || "test_" + Math.random().toString(36).slice(2, 8);
-  document.getElementById("progressText").textContent = `Participant: ${participantId.slice(0, 8)}...`;
+  function escapeHtml(str) {
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
 
-  const data = await loadTrialData();
-  if (!data) return;
-
-  // Find participant's trials by matching participant_id to key
-  // For Prolific: we assign based on URL param, cycling through available slots
-  const pKeys = Object.keys(data);
-  
-  // Map Prolific PID to a participant slot
-  assignedSlot = getUrlParam("participant");
-  if (!assignedSlot) {
-    // Hash the PID to get a consistent slot
-    let hash = 0;
-    for (let i = 0; i < participantId.length; i++) {
-      hash = ((hash << 5) - hash) + participantId.charCodeAt(i);
-      hash |= 0;
+  // ── Load trial data ──
+  function loadTrialData() {
+    var paths = ['trials_by_participant.json', './trials_by_participant.json', 'stimuli/trials_by_participant.json'];
+    function tryNext(i) {
+      if (i >= paths.length) {
+        alert('Error loading trial data. Please refresh the page.');
+        return Promise.resolve(null);
+      }
+      return fetch(paths[i]).then(function(r) {
+        if (r.ok) return r.json();
+        return tryNext(i + 1);
+      }).catch(function() { return tryNext(i + 1); });
     }
-    const idx = Math.abs(hash) % pKeys.length;
-    assignedSlot = pKeys[idx];
+    return tryNext(0);
   }
 
-  trials = data[assignedSlot] || data[pKeys[0]];
-  console.log(`Loaded ${trials.length} trials for slot ${assignedSlot}`);
-}
+  // ── Initialize ──
+  function init() {
+    participantId = getUrlParam('PROLIFIC_PID') || getUrlParam('participant') || 'test_' + Math.random().toString(36).slice(2, 8);
+    document.getElementById('progressText').textContent = 'Participant: ' + participantId.slice(0, 8) + '...';
 
-// ── Timer ──────────────────────────────────────────────────────────────────
-function updateTimer() {
-  if (!startTime) return;
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const min = String(Math.floor(elapsed / 60)).padStart(2, '0');
-  const sec = String(elapsed % 60).padStart(2, '0');
-  document.getElementById("timer").textContent = `${min}:${sec}`;
-}
-
-// ── Start study ────────────────────────────────────────────────────────────
-function startStudy() {
-  document.getElementById("instructionsPanel").classList.add("hidden");
-  document.getElementById("trialContainer").classList.remove("hidden");
-  startTime = Date.now();
-  setInterval(updateTimer, 1000);
-  showTrial(0);
-}
-
-// ── Render trial ───────────────────────────────────────────────────────────
-function showTrial(idx) {
-  if (idx >= trials.length) {
-    showCompletion();
-    return;
-  }
-
-  // Check if we should show a break
-  if (idx > 0 && idx % BREAK_INTERVAL === 0 && !responses[`break_${idx}`]) {
-    showBreak(idx);
-    return;
-  }
-
-  currentTrialIdx = idx;
-  trialStartTime = Date.now();
-  const trial = trials[idx];
-
-  // Update progress
-  const pct = Math.round((idx / trials.length) * 100);
-  document.getElementById("progressText").textContent = `${idx + 1} / ${trials.length}`;
-  document.getElementById("progressFill").style.width = `${pct}%`;
-
-  // Previous response (if navigating back)
-  const prev = responses[trial.trial_id];
-
-  const container = document.getElementById("trialContainer");
-  const scenarioLabel = trial.scenario.replace(/_/g, ' ');
-
-  container.innerHTML = `
-    <div class="trial-card">
-      <span class="scenario-badge">${scenarioLabel}</span>
-      <div class="question-text">${escapeHtml(trial.question)}</div>
-
-      <button class="expand-all-btn" onclick="toggleExpandAll(this)">▲ Collapse all responses</button>
-
-      <div class="response-grid">
-        ${['A','B','C','D'].map(label => `
-          <div class="response-card expanded" id="card_${label}" onclick="toggleExpand('${label}')">
-            <div class="response-header">
-              <span class="response-label">Response ${label}</span>
-              <span class="expand-icon open" id="icon_${label}">▼</span>
-            </div>
-            <div class="response-preview">${escapeHtml(trial.responses[label]).slice(0, 150)}...</div>
-            <div class="response-full">${escapeHtml(trial.responses[label])}</div>
-          </div>
-        `).join('')}
-      </div>
-
-      <div class="selection-area">
-        <h3>Your judgment:</h3>
-        <div class="selection-row">
-          <label class="best-label">✓ MOST helpful:</label>
-          ${['A','B','C','D'].map(l => `
-            <button class="sel-btn" id="best_${l}" onclick="selectBest('${l}')">${l}</button>
-          `).join('')}
-        </div>
-        <div class="selection-row">
-          <label class="worst-label">✗ LEAST helpful:</label>
-          ${['A','B','C','D'].map(l => `
-            <button class="sel-btn" id="worst_${l}" onclick="selectWorst('${l}')">${l}</button>
-          `).join('')}
-        </div>
-        <div class="selection-warning" id="selWarning">
-          You cannot select the same response as both best and worst.
-        </div>
-      </div>
-
-      <div class="nav-bar">
-        <button class="btn-nav btn-prev" onclick="prevTrial()" ${idx === 0 ? 'style="visibility:hidden"' : ''}>← Previous</button>
-        <span style="font-size:13px;color:#888;">Trial ${idx + 1} of ${trials.length}</span>
-        ${idx === trials.length - 1 
-          ? '<button class="btn-nav btn-submit" id="btnNext" onclick="nextTrial()" disabled>Submit & Finish</button>'
-          : '<button class="btn-nav btn-next" id="btnNext" onclick="nextTrial()" disabled>Next →</button>'
+    loadTrialData().then(function(data) {
+      if (!data) return;
+      var pKeys = Object.keys(data);
+      assignedSlot = getUrlParam('participant');
+      if (!assignedSlot) {
+        var hash = 0;
+        for (var i = 0; i < participantId.length; i++) {
+          hash = ((hash << 5) - hash) + participantId.charCodeAt(i);
+          hash |= 0;
         }
-      </div>
-    </div>
-  `;
-
-  // Restore previous selection if navigating back
-  if (prev) {
-    if (prev.best) selectBest(prev.best, true);
-    if (prev.worst) selectWorst(prev.worst, true);
+        assignedSlot = pKeys[Math.abs(hash) % pKeys.length];
+      }
+      trials = data[assignedSlot] || data[pKeys[0]];
+      console.log('Loaded ' + trials.length + ' trials for slot ' + assignedSlot);
+    });
   }
 
-  // Scroll to top
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+  // ── Timer ──
+  function updateTimer() {
+    if (!startTime) return;
+    var elapsed = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById('timer').textContent =
+      String(Math.floor(elapsed / 60)).padStart(2, '0') + ':' + String(elapsed % 60).padStart(2, '0');
+  }
 
-// ── Break screen ───────────────────────────────────────────────────────────
-function showBreak(nextIdx) {
-  const container = document.getElementById("trialContainer");
-  const pct = Math.round((nextIdx / trials.length) * 100);
-  container.innerHTML = `
-    <div class="trial-card">
-      <div class="break-screen">
-        <h2>☕ Quick break</h2>
-        <p>You've completed ${nextIdx} of ${trials.length} items (${pct}%).</p>
-        <p>Take a moment to rest your eyes if needed.</p>
-        <button class="btn-start" onclick="resumeFromBreak(${nextIdx})">Continue →</button>
-      </div>
-    </div>
-  `;
-  responses[`break_${nextIdx}`] = true;
-}
+  // ── Start study ──
+  function startStudy() {
+    document.getElementById('instructionsPanel').classList.add('hidden');
+    document.getElementById('trialContainer').classList.remove('hidden');
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 1000);
+    showTrial(0);
+  }
 
-function resumeFromBreak(idx) {
-  showTrial(idx);
-}
+  // ── Render trial ──
+  function showTrial(idx) {
+    if (idx >= trials.length) { showCompletion(); return; }
+    if (idx > 0 && idx % BREAK_INTERVAL === 0 && !responses['break_' + idx]) {
+      showBreak(idx);
+      return;
+    }
 
-// ── Expand/collapse responses ──────────────────────────────────────────────
-function toggleExpand(label) {
-  const card = document.getElementById(`card_${label}`);
-  const icon = document.getElementById(`icon_${label}`);
-  card.classList.toggle('expanded');
-  icon.classList.toggle('open');
-}
+    currentTrialIdx = idx;
+    trialStartTime = Date.now();
+    currentBest = null;
+    currentWorst = null;
+    var t = trials[idx];
 
-function toggleExpandAll(btn) {
-  const cards = document.querySelectorAll('.response-card');
-  const allExpanded = Array.from(cards).every(c => c.classList.contains('expanded'));
-  cards.forEach(c => {
-    if (allExpanded) {
-      c.classList.remove('expanded');
+    document.getElementById('progressText').textContent = (idx + 1) + ' / ' + trials.length;
+    document.getElementById('progressFill').style.width = Math.round((idx / trials.length) * 100) + '%';
+
+    var prev = responses[t.trial_id];
+    var container = document.getElementById('trialContainer');
+    var scenarioLabel = t.scenario.replace(/_/g, ' ');
+    var labels = ['A', 'B', 'C', 'D'];
+
+    var cardsHtml = labels.map(function(l) {
+      return '<div class="response-card expanded" id="card_' + l + '">' +
+        '<div class="response-header" data-label="' + l + '">' +
+          '<span class="response-label">Response ' + l + '</span>' +
+          '<span class="expand-icon open" id="icon_' + l + '">&#9660;</span>' +
+        '</div>' +
+        '<div class="response-preview">' + escapeHtml(t.responses[l]).slice(0, 150) + '&hellip;</div>' +
+        '<div class="response-full">' + escapeHtml(t.responses[l]) + '</div>' +
+      '</div>';
+    }).join('');
+
+    var bestBtns = labels.map(function(l) {
+      return '<button class="sel-btn" data-action="best" data-label="' + l + '" id="best_' + l + '">' + l + '</button>';
+    }).join('');
+    var worstBtns = labels.map(function(l) {
+      return '<button class="sel-btn" data-action="worst" data-label="' + l + '" id="worst_' + l + '">' + l + '</button>';
+    }).join('');
+
+    var navHtml =
+      '<button class="btn-nav btn-prev" id="btnPrev"' + (idx === 0 ? ' style="visibility:hidden"' : '') + '>&larr; Previous</button>' +
+      '<span style="font-size:13px;color:#888;">Trial ' + (idx + 1) + ' of ' + trials.length + '</span>' +
+      (idx === trials.length - 1
+        ? '<button class="btn-nav btn-submit" id="btnNext" disabled>Submit &amp; Finish</button>'
+        : '<button class="btn-nav btn-next" id="btnNext" disabled>Next &rarr;</button>');
+
+    container.innerHTML =
+      '<div class="trial-card">' +
+        '<span class="scenario-badge">' + scenarioLabel + '</span>' +
+        '<div class="question-text">' + escapeHtml(t.question) + '</div>' +
+        '<button class="expand-all-btn" id="expandAllBtn">&#9650; Collapse all responses</button>' +
+        '<div class="response-grid">' + cardsHtml + '</div>' +
+        '<div class="selection-area">' +
+          '<h3>Your judgment:</h3>' +
+          '<div class="selection-row"><label class="best-label">&#10003; MOST helpful:</label>' + bestBtns + '</div>' +
+          '<div class="selection-row"><label class="worst-label">&#10007; LEAST helpful:</label>' + worstBtns + '</div>' +
+          '<div class="selection-warning" id="selWarning">You cannot select the same response as both best and worst.</div>' +
+        '</div>' +
+        '<div class="nav-bar">' + navHtml + '</div>' +
+      '</div>';
+
+    // Wire event handlers for this trial
+    document.getElementById('expandAllBtn').addEventListener('click', function() { toggleExpandAll(this); });
+    document.querySelectorAll('.response-header').forEach(function(h) {
+      h.addEventListener('click', function() { toggleExpand(this.dataset.label); });
+    });
+    document.querySelectorAll('[data-action="best"]').forEach(function(b) {
+      b.addEventListener('click', function() { selectBest(this.dataset.label); });
+    });
+    document.querySelectorAll('[data-action="worst"]').forEach(function(b) {
+      b.addEventListener('click', function() { selectWorst(this.dataset.label); });
+    });
+    document.getElementById('btnNext').addEventListener('click', nextTrial);
+    if (idx > 0) document.getElementById('btnPrev').addEventListener('click', prevTrial);
+
+    // Restore previous selection
+    if (prev) {
+      if (prev.best) selectBest(prev.best);
+      if (prev.worst) selectWorst(prev.worst);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ── Break screen ──
+  function showBreak(nextIdx) {
+    var container = document.getElementById('trialContainer');
+    var pct = Math.round((nextIdx / trials.length) * 100);
+    container.innerHTML =
+      '<div class="trial-card"><div class="break-screen">' +
+        '<h2>&#9749; Quick break</h2>' +
+        '<p>You have completed ' + nextIdx + ' of ' + trials.length + ' items (' + pct + '%).</p>' +
+        '<p>Take a moment to rest your eyes if needed.</p>' +
+        '<button class="btn-start" id="btnResume">Continue &rarr;</button>' +
+      '</div></div>';
+    document.getElementById('btnResume').addEventListener('click', function() { showTrial(nextIdx); });
+    responses['break_' + nextIdx] = true;
+  }
+
+  // ── Expand / collapse ──
+  function toggleExpand(label) {
+    document.getElementById('card_' + label).classList.toggle('expanded');
+    document.getElementById('icon_' + label).classList.toggle('open');
+  }
+
+  function toggleExpandAll(btn) {
+    var cards = document.querySelectorAll('.response-card');
+    var allExpanded = Array.from(cards).every(function(c) { return c.classList.contains('expanded'); });
+    cards.forEach(function(c) {
+      if (allExpanded) c.classList.remove('expanded');
+      else c.classList.add('expanded');
+    });
+    document.querySelectorAll('.expand-icon').forEach(function(i) {
+      if (allExpanded) i.classList.remove('open');
+      else i.classList.add('open');
+    });
+    btn.innerHTML = allExpanded ? '&#9660; Expand all responses' : '&#9650; Collapse all responses';
+  }
+
+  // ── Selection logic ──
+  function selectBest(label) {
+    if (label === currentWorst) {
+      document.getElementById('selWarning').style.display = 'block';
+      setTimeout(function() { document.getElementById('selWarning').style.display = 'none'; }, 2000);
+      return;
+    }
+    ['A','B','C','D'].forEach(function(l) {
+      document.getElementById('best_' + l).classList.remove('best-selected');
+      document.getElementById('card_' + l).classList.remove('selected-best');
+      document.getElementById('worst_' + l).classList.remove('disabled');
+    });
+    document.getElementById('best_' + label).classList.add('best-selected');
+    document.getElementById('card_' + label).classList.add('selected-best');
+    document.getElementById('worst_' + label).classList.add('disabled');
+    currentBest = label;
+    checkComplete();
+  }
+
+  function selectWorst(label) {
+    if (label === currentBest) {
+      document.getElementById('selWarning').style.display = 'block';
+      setTimeout(function() { document.getElementById('selWarning').style.display = 'none'; }, 2000);
+      return;
+    }
+    ['A','B','C','D'].forEach(function(l) {
+      document.getElementById('worst_' + l).classList.remove('worst-selected');
+      document.getElementById('card_' + l).classList.remove('selected-worst');
+      document.getElementById('best_' + l).classList.remove('disabled');
+    });
+    document.getElementById('worst_' + label).classList.add('worst-selected');
+    document.getElementById('card_' + label).classList.add('selected-worst');
+    document.getElementById('best_' + label).classList.add('disabled');
+    currentWorst = label;
+    checkComplete();
+  }
+
+  function checkComplete() {
+    var btn = document.getElementById('btnNext');
+    if (currentBest && currentWorst && currentBest !== currentWorst) btn.disabled = false;
+  }
+
+  // ── Navigation ──
+  function saveCurrentResponse() {
+    if (currentTrialIdx < 0 || currentTrialIdx >= trials.length) return;
+    var t = trials[currentTrialIdx];
+    responses[t.trial_id] = {
+      trial_id: t.trial_id,
+      trial_type: t.trial_type,
+      best: currentBest,
+      worst: currentWorst,
+      time_ms: Date.now() - trialStartTime,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  function nextTrial() {
+    saveCurrentResponse();
+    currentBest = null;
+    currentWorst = null;
+    if (currentTrialIdx >= trials.length - 1) showCompletion();
+    else showTrial(currentTrialIdx + 1);
+  }
+
+  function prevTrial() {
+    saveCurrentResponse();
+    currentBest = null;
+    currentWorst = null;
+    if (currentTrialIdx > 0) showTrial(currentTrialIdx - 1);
+  }
+
+  // ── Completion ──
+  function showCompletion() {
+    if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('trialContainer').classList.add('hidden');
+    document.getElementById('completionScreen').classList.remove('hidden');
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('progressText').textContent = trials.length + ' / ' + trials.length + ' \u2713';
+
+    var code = 'BWS' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    document.getElementById('completionCode').textContent = code;
+
+    completionPayload = {
+      participant_id: participantId,
+      assigned_slot: assignedSlot,
+      completion_code: code,
+      total_time_ms: Date.now() - startTime,
+      trials_completed: Object.keys(responses).filter(function(k) { return k.indexOf('break_') !== 0; }).length,
+      responses: responses,
+      user_agent: navigator.userAgent,
+      timestamp: new Date().toISOString()
+    };
+
+    // localStorage backup
+    try { localStorage.setItem('bws_eval_' + participantId, JSON.stringify(completionPayload)); } catch(e) {}
+
+    // Save data
+    if (typeof jatos !== 'undefined') {
+      try {
+        jatos.submitResultData(
+          JSON.stringify(completionPayload),
+          function() {
+            // success
+            document.getElementById('saveStatusMsg').className = 'save-status saved';
+            document.getElementById('saveStatusMsg').innerHTML = '<span>&#10003; Results saved successfully!</span>';
+            document.getElementById('btnProlific').disabled = false;
+            document.getElementById('btnProlific').textContent = 'Return to Prolific';
+          },
+          function() {
+            // error
+            console.error('JATOS submitResultData failed');
+            document.getElementById('saveStatusMsg').className = 'save-status failed';
+            document.getElementById('saveStatusMsg').innerHTML = '<span>&#9888; Server save failed &mdash; please download your file below.</span>';
+            showFallback();
+          }
+        );
+      } catch (e) {
+        console.error('JATOS save threw:', e);
+        showFallback();
+      }
     } else {
-      c.classList.add('expanded');
+      // No JATOS — show download + email flow
+      document.getElementById('saveStatusBox').classList.add('hidden');
+      showFallback();
     }
-  });
-  document.querySelectorAll('.expand-icon').forEach(i => {
-    if (allExpanded) i.classList.remove('open');
-    else i.classList.add('open');
-  });
-  btn.textContent = allExpanded ? '▼ Expand all responses' : '▲ Collapse all responses';
-}
-
-// ── Selection logic ────────────────────────────────────────────────────────
-let currentBest = null;
-let currentWorst = null;
-
-function selectBest(label, isRestore) {
-  // Can't select same as worst
-  if (label === currentWorst) {
-    document.getElementById("selWarning").style.display = "block";
-    setTimeout(() => document.getElementById("selWarning").style.display = "none", 2000);
-    return;
   }
 
-  // Clear previous best
-  ['A','B','C','D'].forEach(l => {
-    document.getElementById(`best_${l}`).classList.remove('best-selected');
-    document.getElementById(`card_${l}`).classList.remove('selected-best');
-  });
-  // Also re-enable previously disabled worst buttons
-  ['A','B','C','D'].forEach(l => {
-    document.getElementById(`worst_${l}`).classList.remove('disabled');
-  });
-
-  document.getElementById(`best_${label}`).classList.add('best-selected');
-  document.getElementById(`card_${label}`).classList.add('selected-best');
-  // Disable this label in worst row
-  document.getElementById(`worst_${label}`).classList.add('disabled');
-
-  currentBest = label;
-  checkComplete();
-}
-
-function selectWorst(label, isRestore) {
-  if (label === currentBest) {
-    document.getElementById("selWarning").style.display = "block";
-    setTimeout(() => document.getElementById("selWarning").style.display = "none", 2000);
-    return;
-  }
-
-  ['A','B','C','D'].forEach(l => {
-    document.getElementById(`worst_${l}`).classList.remove('worst-selected');
-    document.getElementById(`card_${l}`).classList.remove('selected-worst');
-  });
-  ['A','B','C','D'].forEach(l => {
-    document.getElementById(`best_${l}`).classList.remove('disabled');
-  });
-
-  document.getElementById(`worst_${label}`).classList.add('worst-selected');
-  document.getElementById(`card_${label}`).classList.add('selected-worst');
-  document.getElementById(`best_${label}`).classList.add('disabled');
-
-  currentWorst = label;
-  checkComplete();
-}
-
-function checkComplete() {
-  const btn = document.getElementById("btnNext");
-  if (currentBest && currentWorst && currentBest !== currentWorst) {
-    btn.disabled = false;
-  }
-}
-
-// ── Navigation ─────────────────────────────────────────────────────────────
-function saveCurrentResponse() {
-  if (currentTrialIdx < 0 || currentTrialIdx >= trials.length) return;
-  const trial = trials[currentTrialIdx];
-  responses[trial.trial_id] = {
-    trial_id: trial.trial_id,
-    trial_type: trial.trial_type,
-    best: currentBest,
-    worst: currentWorst,
-    time_ms: Date.now() - trialStartTime,
-    timestamp: new Date().toISOString(),
-  };
-}
-
-function nextTrial() {
-  saveCurrentResponse();
-  currentBest = null;
-  currentWorst = null;
-
-  if (currentTrialIdx >= trials.length - 1) {
-    showCompletion();
-  } else {
-    showTrial(currentTrialIdx + 1);
-  }
-}
-
-function prevTrial() {
-  saveCurrentResponse();
-  currentBest = null;
-  currentWorst = null;
-  if (currentTrialIdx > 0) {
-    showTrial(currentTrialIdx - 1);
-  }
-}
-
-// ── Completion ─────────────────────────────────────────────────────────────
-let completionPayload = null;
-
-async function showCompletion() {
-  document.getElementById("trialContainer").classList.add("hidden");
-  document.getElementById("completionScreen").classList.remove("hidden");
-  document.getElementById("progressFill").style.width = "100%";
-  document.getElementById("progressText").textContent = `${trials.length} / ${trials.length} ✓`;
-
-  // Generate completion code
-  const code = "BWS" + Math.random().toString(36).slice(2, 8).toUpperCase();
-  document.getElementById("completionCode").textContent = code;
-
-  // Package data
-  completionPayload = {
-    participant_id: participantId,
-    assigned_slot: assignedSlot,
-    completion_code: code,
-    total_time_ms: Date.now() - startTime,
-    trials_completed: Object.keys(responses).filter(k => !k.startsWith('break_')).length,
-    responses: responses,
-    user_agent: navigator.userAgent,
-    timestamp: new Date().toISOString(),
-  };
-
-  // Save to localStorage as backup
-  localStorage.setItem(`bws_eval_${participantId}`, JSON.stringify(completionPayload));
-
-  // === Save data ===
-  if (ON_JATOS) {
-    // Running on cognition.run → save via JATOS API (stored server-side)
-    try {
-      await jatos.submitResultData(JSON.stringify(completionPayload));
-      document.getElementById("saveStatusMsg").className = "save-status saved";
-      document.getElementById("saveStatusMsg").innerHTML = "<span>✓ Results saved successfully!</span>";
-      document.getElementById("btnProlific").disabled = false;
-      document.getElementById("btnProlific").textContent = "Return to Prolific";
-    } catch (e) {
-      console.error("JATOS save failed:", e);
-      // Fall back to download
-      document.getElementById("saveStatusMsg").className = "save-status failed";
-      document.getElementById("saveStatusMsg").innerHTML = "<span>⚠ Server save failed — please download your file below.</span>";
-      document.getElementById("fallbackDownload").classList.remove("hidden");
-      document.getElementById("emailAddress").textContent = RESEARCHER_EMAIL;
-      document.getElementById("pidDisplay").textContent = participantId;
-      document.getElementById("btnProlific").disabled = false;
-      document.getElementById("btnProlific").textContent = "Return to Prolific";
-      downloadResults();
-    }
-  } else {
-    // Local / GitHub Pages → show download + email flow
-    document.getElementById("saveStatusBox").classList.add("hidden");
-    document.getElementById("fallbackDownload").classList.remove("hidden");
-    document.getElementById("emailAddress").textContent = RESEARCHER_EMAIL;
-    document.getElementById("pidDisplay").textContent = participantId;
-    document.getElementById("btnProlific").disabled = false;
-    document.getElementById("btnProlific").textContent = "Return to Prolific";
+  function showFallback() {
+    document.getElementById('fallbackDownload').classList.remove('hidden');
+    document.getElementById('emailAddress').textContent = RESEARCHER_EMAIL;
+    document.getElementById('pidDisplay').textContent = participantId;
+    document.getElementById('btnProlific').disabled = false;
+    document.getElementById('btnProlific').textContent = 'Return to Prolific';
     downloadResults();
   }
-}
 
-function downloadResults() {
-  if (!completionPayload) return;
-  const blob = new Blob([JSON.stringify(completionPayload, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `bws_response_${participantId}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  document.getElementById("downloadStatus").textContent = `✓ File downloaded: bws_response_${participantId}.json`;
-  document.getElementById("downloadBtn").textContent = "⬇ Download Again";
-}
-
-function redirectToProlific() {
-  if (ON_JATOS) {
-    // Let JATOS handle the redirect (uses End Redirect URL set in cognition.run)
-    try { jatos.endStudy(); } catch(e) { window.location.href = PROLIFIC_COMPLETION_URL; }
-  } else {
-    window.location.href = PROLIFIC_COMPLETION_URL;
+  function downloadResults() {
+    if (!completionPayload) return;
+    var blob = new Blob([JSON.stringify(completionPayload, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'bws_response_' + participantId + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    document.getElementById('downloadStatus').textContent = '\u2713 File downloaded';
+    document.getElementById('downloadBtn').textContent = '\u2b07 Download Again';
   }
-}
 
-// ── Utility ────────────────────────────────────────────────────────────────
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+  function redirectToProlific() {
+    if (typeof jatos !== 'undefined') {
+      try {
+        jatos.endStudy();
+      } catch (e) {
+        window.location.href = PROLIFIC_COMPLETION_URL;
+      }
+      // Fallback if endStudy doesn't redirect within 3s
+      setTimeout(function() { window.location.href = PROLIFIC_COMPLETION_URL; }, 3000);
+    } else {
+      window.location.href = PROLIFIC_COMPLETION_URL;
+    }
+  }
 
-// ── Boot ───────────────────────────────────────────────────────────────────
-if (typeof jatos !== 'undefined') {
-  jatos.onLoad(function() {
-    console.log("Running on cognition.run (JATOS)");
-    init();
-  });
-} else {
-  console.log("Running locally (no JATOS)");
+  // ── Go ──
   init();
 }
-</script>
 
-</body>
+// ═══════════════════════════════════════════════════════════════════════════
+// jsPsych 7 custom plugin (wraps runBwsExperiment)
+// ═══════════════════════════════════════════════════════════════════════════
+var jsPsychBwsEval;
+if (typeof jsPsychModule !== 'undefined') {
+  jsPsychBwsEval = (function(jspsych) {
+    var info = {
+      name: 'bws-eval',
+      parameters: {}
+    };
+
+    function BwsEvalPlugin(jsPsych) {
+      this.jsPsych = jsPsych;
+    }
+
+    BwsEvalPlugin.info = info;
+
+    BwsEvalPlugin.prototype.trial = function(display_element) {
+      // Hand control to our experiment (never calls finishTrial;
+      // participant is redirected away by jatos.endStudy).
+      runBwsExperiment(display_element);
+    };
+
+    return BwsEvalPlugin;
+  })(jsPsychModule);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Boot — adapts to environment
+// ═══════════════════════════════════════════════════════════════════════════
+if (typeof jatos !== 'undefined' && typeof initJsPsych !== 'undefined' && jsPsychBwsEval) {
+  // ── cognition.run (JATOS + jsPsych) ──
+  jatos.onLoad(function() {
+    var jsPsych = initJsPsych({
+      on_finish: function() {
+        // Safety net — normally jatos.endStudy() redirects before this fires
+        if (typeof jatos !== 'undefined') jatos.endStudy();
+      }
+    });
+    jsPsych.run([{ type: jsPsychBwsEval }]);
+  });
+
+} else if (typeof initJsPsych !== 'undefined' && jsPsychBwsEval) {
+  // ── jsPsych available but no JATOS (unlikely) ──
+  var jsPsych = initJsPsych({});
+  jsPsych.run([{ type: jsPsychBwsEval }]);
+
+} else {
+  // ── No jsPsych (local testing / GitHub Pages) ──
+  document.addEventListener('DOMContentLoaded', function() {
+    runBwsExperiment(document.body);
+  });
+}
+</script>
 </html>
