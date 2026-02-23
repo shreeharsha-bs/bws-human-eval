@@ -72,6 +72,13 @@
     padding: 32px; margin-bottom: 24px;
     border-left: 4px solid #4361ee;
     box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    overflow: hidden;
+    transition: max-height 0.5s ease, opacity 0.4s ease, padding 0.5s ease, margin 0.5s ease;
+  }
+  .instructions.collapsing {
+    max-height: 0 !important; opacity: 0;
+    padding-top: 0; padding-bottom: 0;
+    margin-bottom: 0;
   }
   .instructions h1 { font-size: 22px; margin-bottom: 12px; }
   .instructions h2 { font-size: 17px; margin: 16px 0 8px; color: #4361ee; }
@@ -409,11 +416,20 @@ function runBwsExperiment(targetElement) {
 
   // ── Start study ──
   function startStudy() {
-    document.getElementById('instructionsPanel').classList.add('hidden');
-    document.getElementById('trialContainer').classList.remove('hidden');
-    startTime = Date.now();
-    timerInterval = setInterval(updateTimer, 1000);
-    showTrial(0);
+    var panel = document.getElementById('instructionsPanel');
+    // Set explicit max-height so CSS transition works
+    panel.style.maxHeight = panel.scrollHeight + 'px';
+    // Force reflow then collapse
+    panel.offsetHeight;
+    panel.classList.add('collapsing');
+    // After animation finishes, fully hide and show first trial
+    setTimeout(function() {
+      panel.style.display = 'none';
+      document.getElementById('trialContainer').classList.remove('hidden');
+      startTime = Date.now();
+      timerInterval = setInterval(updateTimer, 1000);
+      showTrial(0);
+    }, 500);
   }
 
   // ── Render trial ──
