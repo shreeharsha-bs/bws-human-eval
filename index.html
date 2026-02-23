@@ -207,7 +207,24 @@
     .container { padding: 12px; }
     .trial-card { padding: 16px; }
   }
+
+  /* ── Save status ── */
+  .save-status {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px; border-radius: 8px;
+    font-size: 14px; margin-top: 12px;
+  }
+  .save-status.saving { background: #fff3e0; color: #e65100; }
+  .save-status.saved  { background: #e8f5e9; color: #2e7d32; }
+  .save-status.failed  { background: #ffebee; color: #c62828; }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid #e65100; border-top-color: transparent;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
+<script src="jatos.js"></script>
 </head>
 <body>
 
@@ -268,25 +285,37 @@
       <h1>✓ Study Complete!</h1>
       <p>Thank you for your careful evaluation!</p>
 
-      <div style="background:#e8f5e9; border-radius:10px; padding:24px; margin:20px 0; text-align:left;">
-        <h3 style="margin-bottom:12px; color:#2e7d32;">📥 Step 1: Download your results</h3>
-        <p style="font-size:14px; color:#555; margin-bottom:12px;">Your results file should download automatically. If it doesn't, click the button below:</p>
-        <button class="btn-start" id="downloadBtn" onclick="downloadResults()" style="background:#2e7d32;">⬇ Download Results File</button>
-        <p style="font-size:12px; color:#888; margin-top:8px;" id="downloadStatus"></p>
+      <!-- Status box (cognition.run / JATOS mode) -->
+      <div id="saveStatusBox" style="background:#e8f5e9; border-radius:10px; padding:24px; margin:20px 0; text-align:left;">
+        <h3 style="margin-bottom:12px; color:#2e7d32;">💾 Saving your results...</h3>
+        <div class="save-status saving" id="saveStatusMsg">
+          <div class="spinner"></div>
+          <span>Uploading responses to server...</span>
+        </div>
       </div>
 
-      <div style="background:#e3f2fd; border-radius:10px; padding:24px; margin:20px 0; text-align:left;">
-        <h3 style="margin-bottom:12px; color:#1565c0;">📧 Step 2: Email the file</h3>
-        <p style="font-size:14px; color:#555;">Please send the downloaded <code>.json</code> file to:</p>
-        <div style="font-size:18px; font-weight:bold; color:#1565c0; margin:12px 0; font-family:monospace;" id="emailAddress"><!-- set in config --></div>
-        <p style="font-size:13px; color:#888;">Subject line: <strong>BWS Evaluation — <span id="pidDisplay"></span></strong></p>
+      <!-- Fallback: download + email (shown only if not on cognition.run) -->
+      <div id="fallbackDownload" class="hidden" style="text-align:left;">
+        <div style="background:#e8f5e9; border-radius:10px; padding:24px; margin:20px 0;">
+          <h3 style="margin-bottom:12px; color:#2e7d32;">📥 Step 1: Download your results</h3>
+          <p style="font-size:14px; color:#555; margin-bottom:12px;">Your results file should download automatically. If it doesn't, click below:</p>
+          <button class="btn-start" id="downloadBtn" onclick="downloadResults()" style="background:#2e7d32;">⬇ Download Results File</button>
+          <p style="font-size:12px; color:#888; margin-top:8px;" id="downloadStatus"></p>
+        </div>
+        <div style="background:#e3f2fd; border-radius:10px; padding:24px; margin:20px 0;">
+          <h3 style="margin-bottom:12px; color:#1565c0;">📧 Step 2: Email the file</h3>
+          <p style="font-size:14px; color:#555;">Send the downloaded <code>.json</code> file to:</p>
+          <div style="font-size:18px; font-weight:bold; color:#1565c0; margin:12px 0; font-family:monospace;" id="emailAddress"></div>
+          <p style="font-size:13px; color:#888;">Subject: <strong>BWS Evaluation — <span id="pidDisplay"></span></strong></p>
+        </div>
       </div>
 
+      <!-- Prolific redirect (always shown) -->
       <div style="background:#fff3e0; border-radius:10px; padding:24px; margin:20px 0; text-align:left;">
-        <h3 style="margin-bottom:12px; color:#e65100;">🎫 Step 3: Enter completion code on Prolific</h3>
-        <p style="font-size:14px; color:#555; margin-bottom:8px;">Copy this code and paste it into Prolific:</p>
+        <h3 style="margin-bottom:12px; color:#e65100;">🎫 Return to Prolific</h3>
+        <p style="font-size:14px; color:#555; margin-bottom:8px;">Copy this completion code and paste it into Prolific:</p>
         <div class="code" id="completionCode">LOADING...</div>
-        <p style="margin-top:12px;"><button class="btn-start" onclick="redirectToProlific()" style="background:#e65100;">Return to Prolific</button></p>
+        <p style="margin-top:12px;"><button class="btn-start" id="btnProlific" onclick="redirectToProlific()" style="background:#e65100;" disabled>Saving… please wait</button></p>
       </div>
     </div>
   </div>
@@ -295,8 +324,9 @@
 <script>
 // ── Configuration ──────────────────────────────────────────────────────────
 const PROLIFIC_COMPLETION_URL = "https://app.prolific.com/submissions/complete?cc=XXXXXXXX"; // Replace with actual Prolific completion code
-const RESEARCHER_EMAIL = "shbs@kth.se"; // Replace with your email
+const RESEARCHER_EMAIL = "shbs@kth.se";
 const BREAK_INTERVAL = 7; // Show break every N trials
+const ON_JATOS = (typeof jatos !== 'undefined'); // true when running on cognition.run
 
 // ── State ──────────────────────────────────────────────────────────────────
 let trials = [];
@@ -621,8 +651,6 @@ async function showCompletion() {
   // Generate completion code
   const code = "BWS" + Math.random().toString(36).slice(2, 8).toUpperCase();
   document.getElementById("completionCode").textContent = code;
-  document.getElementById("emailAddress").textContent = RESEARCHER_EMAIL;
-  document.getElementById("pidDisplay").textContent = participantId;
 
   // Package data
   completionPayload = {
@@ -639,8 +667,37 @@ async function showCompletion() {
   // Save to localStorage as backup
   localStorage.setItem(`bws_eval_${participantId}`, JSON.stringify(completionPayload));
 
-  // Auto-download the results file
-  downloadResults();
+  // === Save data ===
+  if (ON_JATOS) {
+    // Running on cognition.run → save via JATOS API (stored server-side)
+    try {
+      await jatos.submitResultData(JSON.stringify(completionPayload));
+      document.getElementById("saveStatusMsg").className = "save-status saved";
+      document.getElementById("saveStatusMsg").innerHTML = "<span>✓ Results saved successfully!</span>";
+      document.getElementById("btnProlific").disabled = false;
+      document.getElementById("btnProlific").textContent = "Return to Prolific";
+    } catch (e) {
+      console.error("JATOS save failed:", e);
+      // Fall back to download
+      document.getElementById("saveStatusMsg").className = "save-status failed";
+      document.getElementById("saveStatusMsg").innerHTML = "<span>⚠ Server save failed — please download your file below.</span>";
+      document.getElementById("fallbackDownload").classList.remove("hidden");
+      document.getElementById("emailAddress").textContent = RESEARCHER_EMAIL;
+      document.getElementById("pidDisplay").textContent = participantId;
+      document.getElementById("btnProlific").disabled = false;
+      document.getElementById("btnProlific").textContent = "Return to Prolific";
+      downloadResults();
+    }
+  } else {
+    // Local / GitHub Pages → show download + email flow
+    document.getElementById("saveStatusBox").classList.add("hidden");
+    document.getElementById("fallbackDownload").classList.remove("hidden");
+    document.getElementById("emailAddress").textContent = RESEARCHER_EMAIL;
+    document.getElementById("pidDisplay").textContent = participantId;
+    document.getElementById("btnProlific").disabled = false;
+    document.getElementById("btnProlific").textContent = "Return to Prolific";
+    downloadResults();
+  }
 }
 
 function downloadResults() {
@@ -659,7 +716,12 @@ function downloadResults() {
 }
 
 function redirectToProlific() {
-  window.location.href = PROLIFIC_COMPLETION_URL;
+  if (ON_JATOS) {
+    // Let JATOS handle the redirect (uses End Redirect URL set in cognition.run)
+    try { jatos.endStudy(); } catch(e) { window.location.href = PROLIFIC_COMPLETION_URL; }
+  } else {
+    window.location.href = PROLIFIC_COMPLETION_URL;
+  }
 }
 
 // ── Utility ────────────────────────────────────────────────────────────────
@@ -670,7 +732,15 @@ function escapeHtml(str) {
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────
-init();
+if (typeof jatos !== 'undefined') {
+  jatos.onLoad(function() {
+    console.log("Running on cognition.run (JATOS)");
+    init();
+  });
+} else {
+  console.log("Running locally (no JATOS)");
+  init();
+}
 </script>
 
 </body>
